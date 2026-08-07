@@ -6,34 +6,42 @@
   <title>行程安排通報系統</title>
   <style>
     body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; padding: 20px; background-color: #f4f7f6; color: #333; }
-    .container { max-width: 900px; margin: 0 auto; background: white; padding: 25px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+    .container { max-width: 950px; margin: 0 auto; background: white; padding: 25px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
     h2, h3 { color: #0056b3; }
     .hidden { display: none; }
     .form-group { margin-bottom: 12px; }
     label { display: block; margin-bottom: 5px; font-weight: bold; }
-    input, select { width: 100%; padding: 8px; box-sizing: border-box; border: 1px solid #ccc; border-radius: 4px; }
+    input, select, textarea { width: 100%; padding: 8px; box-sizing: border-box; border: 1px solid #ccc; border-radius: 4px; }
+    textarea { resize: vertical; height: 60px; }
     input[readonly] { background-color: #e9ecef; cursor: not-allowed; color: #666; }
     .grid { display: grid; grid-template-columns: 1fr; gap: 15px; }
     @media(min-width: 600px) { .grid { grid-template-columns: 1fr 1fr; } }
-    button { background-color: #0056b3; color: white; border: none; padding: 10px 15px; border-radius: 4px; cursor: pointer; font-size: 16px; width: 100%; font-weight: bold;}
+    button { background-color: #0056b3; color: white; border: none; padding: 10px 15px; border-radius: 4px; cursor: pointer; font-size: 16px; font-weight: bold; }
     button:hover { background-color: #003d80; }
     button:disabled { background-color: #cccccc; cursor: not-allowed; }
-    .btn-secondary { background-color: #6c757d; font-size: 14px; padding: 8px 12px; }
+    .btn-secondary { background-color: #6c757d; font-size: 14px; padding: 6px 12px; width: auto; }
     .btn-secondary:hover { background-color: #5a6268; }
+    .btn-add { background-color: #28a745; font-size: 13px; padding: 5px 10px; width: auto; margin-top: 5px; }
+    .btn-add:hover { background-color: #218838; }
+    .btn-remove { background-color: #dc3545; font-size: 13px; padding: 5px 10px; width: auto; }
     .top-bar { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #eee; padding-bottom: 10px; margin-bottom: 20px; }
     .preset-card { background-color: #eef6ff; padding: 15px; border-radius: 6px; border: 1px solid #b6d4fe; margin-bottom: 20px; }
-    table { width: 100%; border-collapse: collapse; margin-top: 15px; min-width: 700px; }
+    .time-block-box { background: #fff8e1; padding: 15px; border-radius: 6px; border: 1px solid #ffe082; margin-bottom: 15px; }
+    .time-row { display: flex; gap: 10px; align-items: center; margin-bottom: 8px; }
+    table { width: 100%; border-collapse: collapse; margin-top: 15px; min-width: 800px; }
     th, td { border: 1px solid #ddd; padding: 10px; text-align: left; font-size: 14px; }
     th { background-color: #f2f2f2; }
+    tr.clickable-row { cursor: pointer; }
+    tr.clickable-row:hover { background-color: #e8f4ff; }
     .search-box { margin-bottom: 15px; }
     .hint { font-size: 12px; color: #666; margin-top: 5px; }
-    .badge { background: #ffc107; color: #000; padding: 2px 6px; border-radius: 4px; font-size: 12px; margin-left: 5px;}
+    .badge { background: #ffc107; color: #000; padding: 2px 6px; border-radius: 4px; font-size: 12px; margin-left: 5px; }
+    .duration-display { font-weight: bold; color: #d9534f; margin-top: 5px; font-size: 14px; }
   </style>
 </head>
 <body>
 
   <div class="container">
-    <!-- 登入畫面 -->
     <div id="loginSection">
       <h2>系統登入</h2>
       <div class="form-group">
@@ -47,35 +55,30 @@
       <button onclick="login()" id="loginBtn">登入</button>
     </div>
 
-    <!-- 系統主畫面 -->
     <div id="mainSection" class="hidden">
-      <!-- 頂部資訊列 -->
       <div class="top-bar">
         <div>
           歡迎，<strong id="currentUserSpan"></strong> 
           <span class="hint">電話: <span id="currentPhoneSpan"></span></span>
         </div>
-        <button onclick="logout()" class="btn-secondary" style="width: auto;">登出系統</button>
+        <button onclick="logout()" class="btn-secondary">登出系統</button>
       </div>
 
-      <h2>📝 新增行程通報</h2>
+      <h2>📝 新增 / 修改行程通報通知</h2>
 
-      <!-- 快速帶入歷史訪視對象 (智慧選項卡片) -->
       <div class="preset-card">
         <label>⚡ 快速選擇過往訪視對象 (由新到舊)</label>
         <select id="historySelect" onchange="applyHistoryPreset()">
-          <option value="">-- 請選擇歷史服務使用者與事業單位 (或者直接在下方填寫新資料) --</option>
+          <option value="">-- 請選擇歷史服務使用者與事業單位 --</option>
         </select>
-        <div class="hint">選擇後系統會自動幫您填寫下方的對象與單位資料。</div>
+        <div class="hint">點選後可自動帶入使用者與事業單位舊資料。</div>
       </div>
 
-      <!-- 通報表單 -->
       <form id="scheduleForm" onsubmit="submitSchedule(event)">
-        
         <div class="grid">
           <div class="form-group">
             <label>服務使用者姓名</label>
-            <input type="text" id="clientName" required placeholder="例如：王小明">
+            <input type="text" id="clientName" required placeholder="例如：王大明">
           </div>
           <div class="form-group">
             <label>到職日期</label>
@@ -83,25 +86,30 @@
           </div>
         </div>
 
-        <div class="grid" style="background: #fff8e1; padding: 15px; border-radius: 6px; border: 1px solid #ffe082; margin-bottom: 15px;">
-          <div class="form-group">
-            <label>📅 預計職場輔導日期 (本次訪視)</label>
-            <input type="date" id="coachingDate" required>
-          </div>
-          <div class="form-group">
-            <label>⏰ 預計職場輔導時段</label>
-            <input type="text" id="coachingTime" placeholder="例如：09:30 - 11:30" required>
+        <div class="time-block-box">
+          <div class="grid">
+            <div class="form-group">
+              <label>📅 預計職場輔導日期</label>
+              <input type="date" id="coachingDate" required>
+            </div>
+            <div class="form-group">
+              <label>⏰ 預計職場輔導時段設定</label>
+              <div id="timeRowsContainer">
+                </div>
+              <button type="button" class="btn-add" onclick="addTimeRow()">➕ 新增時段</button>
+              <div class="duration-display" id="totalDurationText">執行時間：0小時0分</div>
+            </div>
           </div>
         </div>
 
         <div class="grid">
           <div class="form-group">
-            <label>事業單位名稱</label>
-            <input type="text" id="companyName" required oninput="onCompanyInput()" placeholder="輸入名稱可自動帶入地址">
+            <label>事業单位名稱</label>
+            <input type="text" id="companyName" required oninput="onCompanyInput()" placeholder="例如：小杉文化公司">
           </div>
           <div class="form-group">
             <label>工作地地址</label>
-            <input type="text" id="workAddress" required>
+            <input type="text" id="workAddress" required placeholder="例如：台北市中山區全號">
           </div>
         </div>
 
@@ -116,14 +124,18 @@
           </div>
         </div>
 
-        <!-- 就服員資訊鎖定，防呆機制 -->
+        <div class="form-group">
+          <label>備註 (可留空)</label>
+          <textarea id="remarks" placeholder="如有其他細節請在此說明..."></textarea>
+        </div>
+
         <div class="grid">
           <div class="form-group">
-            <label>就服員姓名 (系統自動綁定)</label>
+            <label>就服員姓名</label>
             <input type="text" id="agentName" readonly>
           </div>
           <div class="form-group">
-            <label>就服員電話 (系統自動綁定)</label>
+            <label>就服員電話</label>
             <input type="tel" id="agentPhone" readonly>
           </div>
         </div>
@@ -133,10 +145,10 @@
 
       <hr style="margin: 30px 0; border: 0; border-top: 2px dashed #ccc;">
 
-      <!-- 資料查詢區塊 -->
       <h3>🔍 歷史通報紀錄查詢 <span id="viewPermissionBadge" class="badge"></span></h3>
+      <div class="hint" style="margin-bottom: 8px;">💡 提示：點擊下方任意紀錄表格項目，即可將資料帶回上方表單重新修改與寄信！</div>
       <div class="search-box">
-        <input type="text" id="searchInput" oninput="filterData()" placeholder="輸入關鍵字篩選表格 (姓名、單位、地址等...)">
+        <input type="text" id="searchInput" oninput="filterData()" placeholder="搜尋關鍵字 (姓名、事業單位、備註...)">
       </div>
 
       <div style="overflow-x: auto;">
@@ -146,13 +158,15 @@
               <th>服務使用者</th>
               <th>到職日</th>
               <th>輔導日期/時段</th>
+              <th>執行時間</th>
               <th>事業單位/地址</th>
               <th>聯絡人/電話</th>
-              <th>就服員/電話</th>
+              <th>備註</th>
+              <th>就服員</th>
             </tr>
           </thead>
           <tbody id="dataTableBody">
-            <tr><td colspan="6" style="text-align: center;">載入中...</td></tr>
+            <tr><td colspan="8" style="text-align: center;">載入中...</td></tr>
           </tbody>
         </table>
       </div>
@@ -160,15 +174,26 @@
   </div>
 
   <script>
-    // ⚠️ 【請把下方引號內的網址換成你的 GAS Web App URL】
-    const GAS_API_URL = "https://script.google.com/macros/s/AKfycbyJBpokUNZC4sjOb91S3IBxkJXZjucJ0qRuESGoUhyHBXhzFkbQyXZ3y5g_exBMeqW3Kg/exec"; 
+    const GAS_API_URL = "你的_GAS_WEB_APP_URL"; // 請替換為您的 Web App URL
     
     let currentUser = null;
-    let sessionToken = null; // 用來放通行證
+    let sessionToken = null;
     let userHistoryList = [];
     let allSchedules = [];
 
-    // 1. 登入功能 (將密碼安全傳送給後端驗證)
+    // 自動清理文字：除去所有空白，並把全形英數字/標點符號轉為半形 (備註欄位不處理)
+    function cleanAndToHalfWidth(str, isRemarks = false) {
+      if (!str) return "";
+      let result = str.toString();
+      if (!isRemarks) {
+        result = result.replace(/\s+/g, ""); // 移除所有空白 character
+      }
+      // 全形轉半形邏輯
+      return result.replace(/[\uFF01-\uFF5E]/g, function(ch) {
+        return String.fromCharCode(ch.charCodeAt(0) - 0xfee0);
+      }).replace(/\u3000/g, " ");
+    }
+
     async function login() {
       const username = document.getElementById('loginUsername').value.trim();
       const password = document.getElementById('loginPassword').value;
@@ -182,73 +207,61 @@
       try {
         const response = await fetch(GAS_API_URL, {
           method: 'POST',
-          body: JSON.stringify({ action: 'login', username: username, password: password }),
+          body: JSON.stringify({ action: 'login', username, password }),
           headers: { 'Content-Type': 'text/plain;charset=utf-8' }
         });
         const res = await response.json();
 
         if (res.status === 'success') {
           currentUser = res.user;
-          sessionToken = res.token; // 保存通行證
+          sessionToken = res.token;
 
-          // 判斷權限名稱
           const roleText = currentUser.role === 'admin' ? '主管' : '就服員';
-          
-          // UI 顯示更新
           document.getElementById('currentUserSpan').innerText = `${currentUser.name} (${roleText})`;
           document.getElementById('currentPhoneSpan').innerText = currentUser.phone;
           document.getElementById('viewPermissionBadge').innerText = currentUser.role === 'admin' ? '主管權限：檢視所有人' : '檢視個人紀錄';
           
-          // 鎖定表單欄位
           document.getElementById('agentName').value = currentUser.name;
           document.getElementById('agentPhone').value = currentUser.phone;
 
-          // 切換畫面
           document.getElementById('loginSection').classList.add('hidden');
           document.getElementById('mainSection').classList.remove('hidden');
 
-          // 開始抓資料
+          initTimeRows();
           loadUserHistory();
           loadSchedules();
         } else {
           alert('登入失敗：' + res.message);
         }
       } catch (err) {
-        alert('系統連線錯誤：' + err.message);
+        alert('連線錯誤：' + err.message);
       } finally {
         btn.disabled = false;
         btn.innerText = "登入";
       }
     }
 
-    // 將 API 請求包裝起來，每次都會自動附上身分與 Token
     async function fetchWithAuth(payload) {
       payload.username = currentUser.username;
-      payload.token = sessionToken; 
-      
+      payload.token = sessionToken;
       const response = await fetch(GAS_API_URL, {
         method: 'POST',
         body: JSON.stringify(payload),
         headers: { 'Content-Type': 'text/plain;charset=utf-8' }
       });
       const res = await response.json();
-      
-      // 如果後端說 Token 過期了，強制登出
       if (res.status === 'error' && res.message.includes('身分驗證失敗')) {
         alert(res.message);
-        logout(true); 
+        logout(true);
         throw new Error('Unauthorized');
       }
       return res;
     }
 
-    // 2. 登出
     async function logout(force = false) {
       if (!force && currentUser && sessionToken) {
-        // 告訴後端我們登出了
         await fetchWithAuth({ action: 'logout' }).catch(() => {});
       }
-      // 清空資料並退回登入頁
       currentUser = null;
       sessionToken = null;
       document.getElementById('mainSection').classList.add('hidden');
@@ -256,7 +269,79 @@
       document.getElementById('loginPassword').value = '';
     }
 
-    // 3. 抓取歷史訪視對象 (用於下拉選單)
+    // --- 動態時間選擇與計算機制 ---
+    function initTimeRows() {
+      const container = document.getElementById('timeRowsContainer');
+      container.innerHTML = '';
+      addTimeRow("09:00", "12:00");
+    }
+
+    function addTimeRow(startVal = "", endVal = "") {
+      const container = document.getElementById('timeRowsContainer');
+      const rowDiv = document.createElement('div');
+      rowDiv.className = 'time-row';
+      rowDiv.innerHTML = `
+        <input type="time" class="start-time" value="${startVal}" onchange="calculateTotalDuration()" required>
+        至
+        <input type="time" class="end-time" value="${endVal}" onchange="calculateTotalDuration()" required>
+        <button type="button" class="btn-remove" onclick="removeTimeRow(this)">✕</button>
+      `;
+      container.appendChild(rowDiv);
+      calculateTotalDuration();
+    }
+
+    function removeTimeRow(btn) {
+      const container = document.getElementById('timeRowsContainer');
+      if (container.children.length > 1) {
+        btn.parentElement.remove();
+        calculateTotalDuration();
+      } else {
+        alert("至少需要保留一個時段！");
+      }
+    }
+
+    function calculateTotalDuration() {
+      const startInputs = document.querySelectorAll('.start-time');
+      const endInputs = document.querySelectorAll('.end-time');
+      let totalMinutes = 0;
+
+      for (let i = 0; i < startInputs.length; i++) {
+        const start = startInputs[i].value;
+        const end = endInputs[i].value;
+
+        if (start && end) {
+          const [sHours, sMins] = start.split(':').map(Number);
+          const [eHours, eMins] = end.split(':').map(Number);
+
+          let startTotal = sHours * 60 + sMins;
+          let endTotal = eHours * 60 + eMins;
+
+          if (endTotal > startTotal) {
+            totalMinutes += (endTotal - startTotal);
+          }
+        }
+      }
+
+      const hours = Math.floor(totalMinutes / 60);
+      const mins = totalMinutes % 60;
+      const durationText = `${hours}小時${mins}分`;
+      document.getElementById('totalDurationText').innerText = `執行時間：${durationText}`;
+      return durationText;
+    }
+
+    function getFormattedTimeSlots() {
+      const startInputs = document.querySelectorAll('.start-time');
+      const endInputs = document.querySelectorAll('.end-time');
+      let slots = [];
+      for (let i = 0; i < startInputs.length; i++) {
+        if (startInputs[i].value && endInputs[i].value) {
+          slots.push(`${startInputs[i].value}-${endInputs[i].value}`);
+        }
+      }
+      return slots.join('、');
+    }
+
+    // --- 歷史資料套用機制 ---
     async function loadUserHistory() {
       const res = await fetchWithAuth({ action: 'getUserHistory' });
       if (res.status === 'success') {
@@ -267,34 +352,25 @@
 
     function renderHistoryDropdown() {
       const select = document.getElementById('historySelect');
-      select.innerHTML = '<option value="">-- 請選擇歷史服務使用者與事業單位 (或直接填寫新資料) --</option>';
+      select.innerHTML = '<option value="">-- 請選擇歷史服務使用者與事業單位 --</option>';
 
-      // 過濾掉完全重複的對象組合，只留最新的
       const uniqueMap = new Map();
       userHistoryList.forEach(item => {
         const key = `${item.clientName}_${item.companyName}`;
-        if (!uniqueMap.has(key)) {
-          uniqueMap.set(key, item);
-        }
+        if (!uniqueMap.has(key)) uniqueMap.set(key, item);
       });
 
       uniqueMap.forEach((item, key) => {
         const opt = document.createElement('option');
         opt.value = key;
-        opt.innerText = `👤 ${item.clientName} | 🏢 ${item.companyName} (到職: ${formatDate(item.onboardDate)})`;
+        opt.innerText = `👤 ${item.clientName} | 🏢 ${item.companyName}`;
         select.appendChild(opt);
       });
     }
 
-    // 當下拉選單改變時，帶入資料
     function applyHistoryPreset() {
       const selectedKey = document.getElementById('historySelect').value;
-      if (!selectedKey) {
-        document.getElementById('scheduleForm').reset();
-        document.getElementById('agentName').value = currentUser.name;
-        document.getElementById('agentPhone').value = currentUser.phone;
-        return;
-      }
+      if (!selectedKey) return;
 
       const matched = userHistoryList.find(item => `${item.clientName}_${item.companyName}` === selectedKey);
       if (matched) {
@@ -304,15 +380,12 @@
         document.getElementById('workAddress').value = matched.workAddress;
         document.getElementById('contactPerson').value = matched.contactPerson;
         document.getElementById('contactPhone').value = matched.contactPhone;
-        // 輔導時間欄位清空讓使用者填寫本次時間
-        document.getElementById('coachingDate').value = "";
-        document.getElementById('coachingTime').value = "";
+        if(matched.remarks) document.getElementById('remarks').value = matched.remarks;
       }
     }
 
-    // 在輸入事業單位時，自動帶入對應的地址與聯絡人
     function onCompanyInput() {
-      const currentCompany = document.getElementById('companyName').value.trim().toLowerCase();
+      const currentCompany = cleanAndToHalfWidth(document.getElementById('companyName').value).toLowerCase();
       if (!currentCompany) return;
 
       const matched = userHistoryList.find(item => item.companyName.toLowerCase() === currentCompany);
@@ -323,52 +396,87 @@
       }
     }
 
-    // 4. 儲存並提交通報表單
+    // 點擊查詢紀錄項目帶回表單修改
+    function populateFormFromRecord(index) {
+      const item = allSchedules[index];
+      if (!item) return;
+
+      document.getElementById('clientName').value = item.clientName;
+      document.getElementById('onboardDate').value = formatDate(item.onboardDate);
+      document.getElementById('coachingDate').value = formatDate(item.coachingDate);
+      document.getElementById('companyName').value = item.companyName;
+      document.getElementById('workAddress').value = item.workAddress;
+      document.getElementById('contactPerson').value = item.contactPerson;
+      document.getElementById('contactPhone').value = item.contactPhone;
+      document.getElementById('remarks').value = item.remarks || "";
+
+      // 拆解時段填入時段組
+      const timeSlots = item.coachingTime.split('、');
+      const container = document.getElementById('timeRowsContainer');
+      container.innerHTML = '';
+      
+      timeSlots.forEach(slot => {
+        const parts = slot.split('-');
+        if (parts.length === 2) {
+          addTimeRow(parts[0], parts[1]);
+        }
+      });
+      
+      if (container.children.length === 0) initTimeRows();
+
+      // 滾動至頂部表單
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    // 6. 送出通報
     async function submitSchedule(e) {
       e.preventDefault();
       const btn = document.getElementById('submitBtn');
       btn.disabled = true;
       btn.innerText = '處理中，請稍候...';
 
-      try {
-        const res = await fetchWithAuth({
-          action: 'submitSchedule',
-          clientName: document.getElementById('clientName').value,
-          onboardDate: document.getElementById('onboardDate').value,
-          coachingDate: document.getElementById('coachingDate').value,
-          coachingTime: document.getElementById('coachingTime').value,
-          companyName: document.getElementById('companyName').value,
-          workAddress: document.getElementById('workAddress').value,
-          contactPerson: document.getElementById('contactPerson').value,
-          contactPhone: document.getElementById('contactPhone').value,
-          agentName: currentUser.name, 
-          agentPhone: currentUser.phone  
-        });
+      const totalDuration = calculateTotalDuration();
+      const coachingTimeStr = getFormattedTimeSlots();
 
+      const payload = {
+        action: 'submitSchedule',
+        clientName: cleanAndToHalfWidth(document.getElementById('clientName').value),
+        onboardDate: cleanAndToHalfWidth(document.getElementById('onboardDate').value),
+        coachingDate: cleanAndToHalfWidth(document.getElementById('coachingDate').value),
+        coachingTime: cleanAndToHalfWidth(coachingTimeStr),
+        companyName: cleanAndToHalfWidth(document.getElementById('companyName').value),
+        workAddress: cleanAndToHalfWidth(document.getElementById('workAddress').value),
+        contactPerson: cleanAndToHalfWidth(document.getElementById('contactPerson').value),
+        contactPhone: cleanAndToHalfWidth(document.getElementById('contactPhone').value),
+        remarks: cleanAndToHalfWidth(document.getElementById('remarks').value, true), // 備註不刪空白
+        totalDuration: totalDuration,
+        agentName: currentUser.name,
+        agentPhone: currentUser.phone
+      };
+
+      try {
+        const res = await fetchWithAuth(payload);
         if (res.status === 'success') {
           alert(res.message);
           document.getElementById('scheduleForm').reset();
           document.getElementById('historySelect').value = '';
-          
-          // 重新補回鎖定的資料
           document.getElementById('agentName').value = currentUser.name;
           document.getElementById('agentPhone').value = currentUser.phone;
+          initTimeRows();
           
-          // 重新載入最新資料
           loadUserHistory();
           loadSchedules();
         } else {
           alert('通報失敗：' + res.message);
         }
       } catch (err) {
-        if (err.message !== 'Unauthorized') alert('發生錯誤：' + err.message);
+        if (err.message !== 'Unauthorized') alert('錯誤：' + err.message);
       } finally {
         btn.disabled = false;
         btn.innerText = '儲存並送出通報通知';
       }
     }
 
-    // 5. 抓取表格資料
     async function loadSchedules() {
       const res = await fetchWithAuth({ action: 'getSchedules' });
       if (res.status === 'success') {
@@ -380,23 +488,24 @@
     function renderTable(data) {
       const tbody = document.getElementById('dataTableBody');
       if (data.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="6" style="text-align: center;">目前尚無紀錄</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="8" style="text-align: center;">目前尚無通報紀錄</td></tr>';
         return;
       }
 
-      tbody.innerHTML = data.map(item => `
-        <tr>
+      tbody.innerHTML = data.map((item, idx) => `
+        <tr class="clickable-row" onclick="populateFormFromRecord(${idx})" title="點擊載入此筆紀錄以修改重新送出">
           <td><strong>${escapeHtml(item.clientName)}</strong></td>
           <td>${formatDate(item.onboardDate)}</td>
           <td>${formatDate(item.coachingDate)}<br><small>${escapeHtml(item.coachingTime)}</small></td>
+          <td><span style="color:#d9534f; font-weight:bold;">${escapeHtml(item.totalDuration || '1小時20分')}</span></td>
           <td>${escapeHtml(item.companyName)}<br><small>${escapeHtml(item.workAddress)}</small></td>
           <td>${escapeHtml(item.contactPerson)}<br><small>${escapeHtml(item.contactPhone)}</small></td>
-          <td>${escapeHtml(item.agentName)}<br><small>${escapeHtml(item.agentPhone)}</small></td>
+          <td><small>${escapeHtml(item.remarks || '-')}</small></td>
+          <td>${escapeHtml(item.agentName)}</td>
         </tr>
       `).join('');
     }
 
-    // 關鍵字搜尋
     function filterData() {
       const keyword = document.getElementById('searchInput').value.toLowerCase().trim();
       if (!keyword) return renderTable(allSchedules);
@@ -407,13 +516,13 @@
           (item.companyName||'').toLowerCase().includes(keyword) ||
           (item.workAddress||'').toLowerCase().includes(keyword) ||
           (item.contactPerson||'').toLowerCase().includes(keyword) ||
+          (item.remarks||'').toLowerCase().includes(keyword) ||
           (item.agentName||'').toLowerCase().includes(keyword)
         );
       });
       renderTable(filtered);
     }
 
-    // 工具函數
     function formatDate(dateStr) {
       if (!dateStr) return '';
       const d = new Date(dateStr);
