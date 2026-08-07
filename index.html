@@ -1,0 +1,429 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>行程安排通報系統</title>
+  <style>
+    body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; padding: 20px; background-color: #f4f7f6; color: #333; }
+    .container { max-width: 900px; margin: 0 auto; background: white; padding: 25px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+    h2, h3 { color: #0056b3; }
+    .hidden { display: none; }
+    .form-group { margin-bottom: 12px; }
+    label { display: block; margin-bottom: 5px; font-weight: bold; }
+    input, select { width: 100%; padding: 8px; box-sizing: border-box; border: 1px solid #ccc; border-radius: 4px; }
+    input[readonly] { background-color: #e9ecef; cursor: not-allowed; color: #666; }
+    .grid { display: grid; grid-template-columns: 1fr; gap: 15px; }
+    @media(min-width: 600px) { .grid { grid-template-columns: 1fr 1fr; } }
+    button { background-color: #0056b3; color: white; border: none; padding: 10px 15px; border-radius: 4px; cursor: pointer; font-size: 16px; width: 100%; font-weight: bold;}
+    button:hover { background-color: #003d80; }
+    button:disabled { background-color: #cccccc; cursor: not-allowed; }
+    .btn-secondary { background-color: #6c757d; font-size: 14px; padding: 8px 12px; }
+    .btn-secondary:hover { background-color: #5a6268; }
+    .top-bar { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #eee; padding-bottom: 10px; margin-bottom: 20px; }
+    .preset-card { background-color: #eef6ff; padding: 15px; border-radius: 6px; border: 1px solid #b6d4fe; margin-bottom: 20px; }
+    table { width: 100%; border-collapse: collapse; margin-top: 15px; min-width: 700px; }
+    th, td { border: 1px solid #ddd; padding: 10px; text-align: left; font-size: 14px; }
+    th { background-color: #f2f2f2; }
+    .search-box { margin-bottom: 15px; }
+    .hint { font-size: 12px; color: #666; margin-top: 5px; }
+    .badge { background: #ffc107; color: #000; padding: 2px 6px; border-radius: 4px; font-size: 12px; margin-left: 5px;}
+  </style>
+</head>
+<body>
+
+  <div class="container">
+    <!-- 登入畫面 -->
+    <div id="loginSection">
+      <h2>系統登入</h2>
+      <div class="form-group">
+        <label>帳號</label>
+        <input type="text" id="loginUsername" placeholder="請輸入帳號">
+      </div>
+      <div class="form-group">
+        <label>密碼</label>
+        <input type="password" id="loginPassword" placeholder="請輸入密碼">
+      </div>
+      <button onclick="login()" id="loginBtn">登入</button>
+    </div>
+
+    <!-- 系統主畫面 -->
+    <div id="mainSection" class="hidden">
+      <!-- 頂部資訊列 -->
+      <div class="top-bar">
+        <div>
+          歡迎，<strong id="currentUserSpan"></strong> 
+          <span class="hint">電話: <span id="currentPhoneSpan"></span></span>
+        </div>
+        <button onclick="logout()" class="btn-secondary" style="width: auto;">登出系統</button>
+      </div>
+
+      <h2>📝 新增行程通報</h2>
+
+      <!-- 快速帶入歷史訪視對象 (智慧選項卡片) -->
+      <div class="preset-card">
+        <label>⚡ 快速選擇過往訪視對象 (由新到舊)</label>
+        <select id="historySelect" onchange="applyHistoryPreset()">
+          <option value="">-- 請選擇歷史服務使用者與事業單位 (或者直接在下方填寫新資料) --</option>
+        </select>
+        <div class="hint">選擇後系統會自動幫您填寫下方的對象與單位資料。</div>
+      </div>
+
+      <!-- 通報表單 -->
+      <form id="scheduleForm" onsubmit="submitSchedule(event)">
+        
+        <div class="grid">
+          <div class="form-group">
+            <label>服務使用者姓名</label>
+            <input type="text" id="clientName" required placeholder="例如：王小明">
+          </div>
+          <div class="form-group">
+            <label>到職日期</label>
+            <input type="date" id="onboardDate" required>
+          </div>
+        </div>
+
+        <div class="grid" style="background: #fff8e1; padding: 15px; border-radius: 6px; border: 1px solid #ffe082; margin-bottom: 15px;">
+          <div class="form-group">
+            <label>📅 預計職場輔導日期 (本次訪視)</label>
+            <input type="date" id="coachingDate" required>
+          </div>
+          <div class="form-group">
+            <label>⏰ 預計職場輔導時段</label>
+            <input type="text" id="coachingTime" placeholder="例如：09:30 - 11:30" required>
+          </div>
+        </div>
+
+        <div class="grid">
+          <div class="form-group">
+            <label>事業單位名稱</label>
+            <input type="text" id="companyName" required oninput="onCompanyInput()" placeholder="輸入名稱可自動帶入地址">
+          </div>
+          <div class="form-group">
+            <label>工作地地址</label>
+            <input type="text" id="workAddress" required>
+          </div>
+        </div>
+
+        <div class="grid">
+          <div class="form-group">
+            <label>工作地聯絡人</label>
+            <input type="text" id="contactPerson" required>
+          </div>
+          <div class="form-group">
+            <label>聯絡人電話</label>
+            <input type="tel" id="contactPhone" required>
+          </div>
+        </div>
+
+        <!-- 就服員資訊鎖定，防呆機制 -->
+        <div class="grid">
+          <div class="form-group">
+            <label>就服員姓名 (系統自動綁定)</label>
+            <input type="text" id="agentName" readonly>
+          </div>
+          <div class="form-group">
+            <label>就服員電話 (系統自動綁定)</label>
+            <input type="tel" id="agentPhone" readonly>
+          </div>
+        </div>
+
+        <button type="submit" id="submitBtn">儲存並送出通報通知</button>
+      </form>
+
+      <hr style="margin: 30px 0; border: 0; border-top: 2px dashed #ccc;">
+
+      <!-- 資料查詢區塊 -->
+      <h3>🔍 歷史通報紀錄查詢 <span id="viewPermissionBadge" class="badge"></span></h3>
+      <div class="search-box">
+        <input type="text" id="searchInput" oninput="filterData()" placeholder="輸入關鍵字篩選表格 (姓名、單位、地址等...)">
+      </div>
+
+      <div style="overflow-x: auto;">
+        <table>
+          <thead>
+            <tr>
+              <th>服務使用者</th>
+              <th>到職日</th>
+              <th>輔導日期/時段</th>
+              <th>事業單位/地址</th>
+              <th>聯絡人/電話</th>
+              <th>就服員/電話</th>
+            </tr>
+          </thead>
+          <tbody id="dataTableBody">
+            <tr><td colspan="6" style="text-align: center;">載入中...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // ⚠️ 【請把下方引號內的網址換成你的 GAS Web App URL】
+    const GAS_API_URL = "https://script.google.com/macros/s/AKfycbyJBpokUNZC4sjOb91S3IBxkJXZjucJ0qRuESGoUhyHBXhzFkbQyXZ3y5g_exBMeqW3Kg/exec"; 
+    
+    let currentUser = null;
+    let sessionToken = null; // 用來放通行證
+    let userHistoryList = [];
+    let allSchedules = [];
+
+    // 1. 登入功能 (將密碼安全傳送給後端驗證)
+    async function login() {
+      const username = document.getElementById('loginUsername').value.trim();
+      const password = document.getElementById('loginPassword').value;
+      const btn = document.getElementById('loginBtn');
+
+      if (!username || !password) return alert('請輸入帳號與密碼');
+
+      btn.disabled = true;
+      btn.innerText = "登入中...";
+
+      try {
+        const response = await fetch(GAS_API_URL, {
+          method: 'POST',
+          body: JSON.stringify({ action: 'login', username: username, password: password }),
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' }
+        });
+        const res = await response.json();
+
+        if (res.status === 'success') {
+          currentUser = res.user;
+          sessionToken = res.token; // 保存通行證
+
+          // 判斷權限名稱
+          const roleText = currentUser.role === 'admin' ? '主管' : '就服員';
+          
+          // UI 顯示更新
+          document.getElementById('currentUserSpan').innerText = `${currentUser.name} (${roleText})`;
+          document.getElementById('currentPhoneSpan').innerText = currentUser.phone;
+          document.getElementById('viewPermissionBadge').innerText = currentUser.role === 'admin' ? '主管權限：檢視所有人' : '檢視個人紀錄';
+          
+          // 鎖定表單欄位
+          document.getElementById('agentName').value = currentUser.name;
+          document.getElementById('agentPhone').value = currentUser.phone;
+
+          // 切換畫面
+          document.getElementById('loginSection').classList.add('hidden');
+          document.getElementById('mainSection').classList.remove('hidden');
+
+          // 開始抓資料
+          loadUserHistory();
+          loadSchedules();
+        } else {
+          alert('登入失敗：' + res.message);
+        }
+      } catch (err) {
+        alert('系統連線錯誤：' + err.message);
+      } finally {
+        btn.disabled = false;
+        btn.innerText = "登入";
+      }
+    }
+
+    // 將 API 請求包裝起來，每次都會自動附上身分與 Token
+    async function fetchWithAuth(payload) {
+      payload.username = currentUser.username;
+      payload.token = sessionToken; 
+      
+      const response = await fetch(GAS_API_URL, {
+        method: 'POST',
+        body: JSON.stringify(payload),
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' }
+      });
+      const res = await response.json();
+      
+      // 如果後端說 Token 過期了，強制登出
+      if (res.status === 'error' && res.message.includes('身分驗證失敗')) {
+        alert(res.message);
+        logout(true); 
+        throw new Error('Unauthorized');
+      }
+      return res;
+    }
+
+    // 2. 登出
+    async function logout(force = false) {
+      if (!force && currentUser && sessionToken) {
+        // 告訴後端我們登出了
+        await fetchWithAuth({ action: 'logout' }).catch(() => {});
+      }
+      // 清空資料並退回登入頁
+      currentUser = null;
+      sessionToken = null;
+      document.getElementById('mainSection').classList.add('hidden');
+      document.getElementById('loginSection').classList.remove('hidden');
+      document.getElementById('loginPassword').value = '';
+    }
+
+    // 3. 抓取歷史訪視對象 (用於下拉選單)
+    async function loadUserHistory() {
+      const res = await fetchWithAuth({ action: 'getUserHistory' });
+      if (res.status === 'success') {
+        userHistoryList = res.history;
+        renderHistoryDropdown();
+      }
+    }
+
+    function renderHistoryDropdown() {
+      const select = document.getElementById('historySelect');
+      select.innerHTML = '<option value="">-- 請選擇歷史服務使用者與事業單位 (或直接填寫新資料) --</option>';
+
+      // 過濾掉完全重複的對象組合，只留最新的
+      const uniqueMap = new Map();
+      userHistoryList.forEach(item => {
+        const key = `${item.clientName}_${item.companyName}`;
+        if (!uniqueMap.has(key)) {
+          uniqueMap.set(key, item);
+        }
+      });
+
+      uniqueMap.forEach((item, key) => {
+        const opt = document.createElement('option');
+        opt.value = key;
+        opt.innerText = `👤 ${item.clientName} | 🏢 ${item.companyName} (到職: ${formatDate(item.onboardDate)})`;
+        select.appendChild(opt);
+      });
+    }
+
+    // 當下拉選單改變時，帶入資料
+    function applyHistoryPreset() {
+      const selectedKey = document.getElementById('historySelect').value;
+      if (!selectedKey) {
+        document.getElementById('scheduleForm').reset();
+        document.getElementById('agentName').value = currentUser.name;
+        document.getElementById('agentPhone').value = currentUser.phone;
+        return;
+      }
+
+      const matched = userHistoryList.find(item => `${item.clientName}_${item.companyName}` === selectedKey);
+      if (matched) {
+        document.getElementById('clientName').value = matched.clientName;
+        document.getElementById('onboardDate').value = formatDate(matched.onboardDate);
+        document.getElementById('companyName').value = matched.companyName;
+        document.getElementById('workAddress').value = matched.workAddress;
+        document.getElementById('contactPerson').value = matched.contactPerson;
+        document.getElementById('contactPhone').value = matched.contactPhone;
+        // 輔導時間欄位清空讓使用者填寫本次時間
+        document.getElementById('coachingDate').value = "";
+        document.getElementById('coachingTime').value = "";
+      }
+    }
+
+    // 在輸入事業單位時，自動帶入對應的地址與聯絡人
+    function onCompanyInput() {
+      const currentCompany = document.getElementById('companyName').value.trim().toLowerCase();
+      if (!currentCompany) return;
+
+      const matched = userHistoryList.find(item => item.companyName.toLowerCase() === currentCompany);
+      if (matched) {
+        if (!document.getElementById('workAddress').value) document.getElementById('workAddress').value = matched.workAddress;
+        if (!document.getElementById('contactPerson').value) document.getElementById('contactPerson').value = matched.contactPerson;
+        if (!document.getElementById('contactPhone').value) document.getElementById('contactPhone').value = matched.contactPhone;
+      }
+    }
+
+    // 4. 儲存並提交通報表單
+    async function submitSchedule(e) {
+      e.preventDefault();
+      const btn = document.getElementById('submitBtn');
+      btn.disabled = true;
+      btn.innerText = '處理中，請稍候...';
+
+      try {
+        const res = await fetchWithAuth({
+          action: 'submitSchedule',
+          clientName: document.getElementById('clientName').value,
+          onboardDate: document.getElementById('onboardDate').value,
+          coachingDate: document.getElementById('coachingDate').value,
+          coachingTime: document.getElementById('coachingTime').value,
+          companyName: document.getElementById('companyName').value,
+          workAddress: document.getElementById('workAddress').value,
+          contactPerson: document.getElementById('contactPerson').value,
+          contactPhone: document.getElementById('contactPhone').value,
+          agentName: currentUser.name, 
+          agentPhone: currentUser.phone  
+        });
+
+        if (res.status === 'success') {
+          alert(res.message);
+          document.getElementById('scheduleForm').reset();
+          document.getElementById('historySelect').value = '';
+          
+          // 重新補回鎖定的資料
+          document.getElementById('agentName').value = currentUser.name;
+          document.getElementById('agentPhone').value = currentUser.phone;
+          
+          // 重新載入最新資料
+          loadUserHistory();
+          loadSchedules();
+        } else {
+          alert('通報失敗：' + res.message);
+        }
+      } catch (err) {
+        if (err.message !== 'Unauthorized') alert('發生錯誤：' + err.message);
+      } finally {
+        btn.disabled = false;
+        btn.innerText = '儲存並送出通報通知';
+      }
+    }
+
+    // 5. 抓取表格資料
+    async function loadSchedules() {
+      const res = await fetchWithAuth({ action: 'getSchedules' });
+      if (res.status === 'success') {
+        allSchedules = res.data;
+        renderTable(allSchedules);
+      }
+    }
+
+    function renderTable(data) {
+      const tbody = document.getElementById('dataTableBody');
+      if (data.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6" style="text-align: center;">目前尚無紀錄</td></tr>';
+        return;
+      }
+
+      tbody.innerHTML = data.map(item => `
+        <tr>
+          <td><strong>${escapeHtml(item.clientName)}</strong></td>
+          <td>${formatDate(item.onboardDate)}</td>
+          <td>${formatDate(item.coachingDate)}<br><small>${escapeHtml(item.coachingTime)}</small></td>
+          <td>${escapeHtml(item.companyName)}<br><small>${escapeHtml(item.workAddress)}</small></td>
+          <td>${escapeHtml(item.contactPerson)}<br><small>${escapeHtml(item.contactPhone)}</small></td>
+          <td>${escapeHtml(item.agentName)}<br><small>${escapeHtml(item.agentPhone)}</small></td>
+        </tr>
+      `).join('');
+    }
+
+    // 關鍵字搜尋
+    function filterData() {
+      const keyword = document.getElementById('searchInput').value.toLowerCase().trim();
+      if (!keyword) return renderTable(allSchedules);
+
+      const filtered = allSchedules.filter(item => {
+        return (
+          (item.clientName||'').toLowerCase().includes(keyword) ||
+          (item.companyName||'').toLowerCase().includes(keyword) ||
+          (item.workAddress||'').toLowerCase().includes(keyword) ||
+          (item.contactPerson||'').toLowerCase().includes(keyword) ||
+          (item.agentName||'').toLowerCase().includes(keyword)
+        );
+      });
+      renderTable(filtered);
+    }
+
+    // 工具函數
+    function formatDate(dateStr) {
+      if (!dateStr) return '';
+      const d = new Date(dateStr);
+      if (isNaN(d.getTime())) return dateStr;
+      return d.toISOString().split('T')[0];
+    }
+
+    function escapeHtml(str) {
+      return String(str || '').replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    }
+  </script>
+</body>
+</html>
